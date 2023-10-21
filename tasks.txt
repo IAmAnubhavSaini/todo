@@ -1,0 +1,40 @@
+# tasks
+
+- Get $HOME directory
+    - If !exist or !found, exit
+- Find "$HOME/.todo" directory
+    - If !exist then create
+    - If exists then check if readable, writable
+        - If not, exit
+- Create or open a file
+- Close a file
+- Handle malloc errors
+- Handle file opening/closing errors.
+- Read file into memory.
+- Parse commands
+- Add
+
+
+
+
+## Future
+
+const char *getOS() {
+#ifdef __linux__
+    const char *os = "Linux";
+#elif defined(_WIN32) || defined(_WIN64)
+    const char* os = "Windows";
+#elif defined(__APPLE__) && defined(__MACH__)
+        const char* os = "macOS";
+#else
+        const char* os = "Unknown";
+#endif
+    return os;
+}
+
+
+printf("Your OS is: %s\n", getOS());
+printf("Count %d\n", argc);
+for (int i = 0; i < argc; i++) {
+    printf("%s\n", argv[i]);
+}
