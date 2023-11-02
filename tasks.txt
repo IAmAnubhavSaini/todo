@@ -12,7 +12,9 @@
 - Handle file opening/closing errors.
 - Read file into memory.
 - Parse commands
-- Add
+
+- Dockerfile for consistent development effort
+
 
 
 

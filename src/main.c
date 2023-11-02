@@ -18,6 +18,17 @@
 #define MAX_LINE_LENGTH 1023
 #define MAX_TODO_FILE_RW_BYTES MAX_LINE_LENGTH*MAX_LINES_COUNT
 
+#define S_MAX_FINAL_PATH_LENGTH 512
+#define S_MAX_TODO_DIR_PATH_LENGTH 256
+#define S_MAX_PRIORITY_FILE_NAME 32
+
+/**
+ * EC: ERROR_CODE
+ */
+#define EC_HOME_DIR_NOT_FOUND 1001
+#define EC_CANNOT_SEEK_FILE 1002
+#define EC_CANNOT_SEEK_FILE_BACKWARDS 1003
+
 /**
  * Commands can be:
  * list             #   lists files and !done tasks
@@ -27,6 +38,8 @@
  * done all         #   mark all tasks done
  * undone <number>  #   mark a task not done
  * undone all       #   mark all tasks not done
+ * help             #   print list of commands
+ * info             #   print information about the system
  */
 #define COMMAND_LIST "list"
 #define COMMAND_ADD "add"
@@ -103,22 +116,73 @@ char *getCurrentLocalTime() {
     return timeString;
 }
 
+void printSeekError(int errorCode){
+    switch (errorCode) {
+        case EINVAL:
+            printf("Error: Invalid argument\n");
+            break;
+        case ESPIPE:
+            printf("Error: The file descriptor refers to a pipe, socket, or FIFO, or it does not support seeking\n");
+            break;
+        case EBADF:
+            printf("Error: Bad file descriptor\n");
+            break;
+        case EOVERFLOW:
+            printf("Error: Resulting file offset cannot be represented in an off_t data type\n");
+            break;
+        case ENXIO:
+            printf("Error: whence is SEEK_DATA or SEEK_HOLE, and offset is beyond  the  end\n"
+                   "              of  the file, or whence is SEEK_DATA and offset is within a hole\n"
+                   "              at the end of the file.\n");
+            break;
+        default:
+            fprintf(stderr, "Error seeking to the end of the file: %d\n", errorCode);
+    }
+}
+
+/**
+ * Prints the helpful information about execution of the binary.
+ * @param argc  {int}   The number of arguments passed to the binary.
+ * @param argv  {char*} The array of arguments passed to the binary.
+ */
+void info(int argc, char *argv[]) {
+    printf("Info:\n");
+    printf("%s <priority> <command> <task>\n", argv[0]);
+    printf("priority is a filename\n");
+    printf("Commands:\n");
+    printf("\tlist             #   lists files and !done tasks\n");
+    printf("\tlist all         #   lists all tasks\n");
+    printf("\tadd \"\"           #   add a new item with timestamp and number\n");
+    printf("\tdone <number>    #   mark a task done\n");
+    printf("\tdone all         #   mark all tasks done\n");
+    printf("\tundone <number>  #   mark a task not done\n");
+    printf("\tundone all       #   mark all tasks not done\n");
+    printf("\thelp             #   print list of commands\n");
+    printf("\tinfo             #   print information about the system\n");
+}
+
+/**
+ * The main function.
+ * @param argc {int}   The number of arguments passed to the binary.
+ * @param argv {char*} The array of arguments passed to the binary.
+ * @return {int} The exit code.
+ */
 int main(int argc, char *argv[]) {
     const char *homeDir = getenv(HOME);
-    printf("%s\n", homeDir);
+    printf("Home directory: %s\n", homeDir);
     if (homeDir == NULL) {
         fprintf(stderr, "Error: Unable to determine home directory.\n");
-        return 0;
+        return EC_HOME_DIR_NOT_FOUND;
     }
 
-    char todoDirPath[256];
+    char todoDirPath[S_MAX_TODO_DIR_PATH_LENGTH];
 
-    snprintf(todoDirPath, sizeof(todoDirPath), "%s%s%s", homeDir, PATH_SEPARATOR, TODO_DIR);
+    snprintf(todoDirPath, S_MAX_TODO_DIR_PATH_LENGTH, "%s%s%s", homeDir, PATH_SEPARATOR, TODO_DIR);
 
-    printf("%s\n", todoDirPath);
+    printf("Todo directory path: %s\n", todoDirPath);
 
-    printf("%s\n", pathExists(todoDirPath) ? "exists" : "does not exist");
-    printf("%s\n", dirAccessible(todoDirPath) ? "accessible" : "not accessible");
+    printf("Todo directory path: %s\n", pathExists(todoDirPath) ? "exists" : "does not exist");
+    printf("Todo directory: %s\n", dirAccessible(todoDirPath) ? "accessible" : "not accessible");
 
     if (!pathExists(todoDirPath)) {
         /*
@@ -219,9 +283,24 @@ int main(int argc, char *argv[]) {
         exit(1);
     }
 
+    if (argc < 2) {
+        info(argc, argv);
+        printf("Error: Priority is not specified. Exiting.\n");
+        exit(1);
+    }
+
     char *priority = argv[1];
-    char finalFilePath[256];
-    snprintf(finalFilePath, sizeof(finalFilePath), "%s%s%s", todoDirPath, PATH_SEPARATOR, priority);
+
+    char finalFilePath[S_MAX_FINAL_PATH_LENGTH];
+    /*
+     * Warning:
+     * warning: ‘snprintf’ output may be truncated before the last format character [-Wformat-truncation=]
+     * note: ‘snprintf’ output 2 or more bytes (assuming nnn) into a destination of size nnn-1
+     * The second param to snprintf is the size of the buffer
+     * https://stackoverflow.com/questions/71012622/warning-builtin-snprintf-output-may-be-truncated-before-the-last-format-cha
+     * Thus sizeof() + 1.
+     */
+    snprintf(finalFilePath, S_MAX_FINAL_PATH_LENGTH, "%s%s%s", todoDirPath, PATH_SEPARATOR, priority);
     printf("Final File Path: %s\n", finalFilePath);
     int fd = open(finalFilePath, O_RDWR | O_CREAT, S_IWUSR | S_IRUSR);
     if (fd == -1) {
@@ -289,45 +368,38 @@ int main(int argc, char *argv[]) {
         exit(EXIT_FAILURE);
     }
 
-    // Seek to get the file size
+    /**
+     * Seek to the end of the file to get the file size
+     */
     off_t fileLength = lseek(fd, 0, SEEK_END);
+    if (fileLength == -1) {
+        int errorCode = errno;
+        printSeekError(errorCode);
+        exit(EC_CANNOT_SEEK_FILE);
+    }
     TodoFile *tf = newTodoFile(fd, fileLength, finalFilePath);
     printTodoFile(tf);
 
-    // Seek to 0 to read the file.
+    /**
+     * Seek back to 0 to read the file.
+     * // rewind(fd) kept failing.
+     */
     off_t seekResult = lseek(tf->fd, 0, SEEK_SET);
-    if(seekResult == -1) {
+    if (seekResult == -1) {
         int errorCode = errno;
-        switch(errorCode) {
-            case EINVAL:
-                printf("Error: Invalid argument\n");
-                break;
-            case ESPIPE:
-                printf("Error: The file descriptor refers to a pipe, socket, or FIFO, or it does not support seeking\n");
-                break;
-            case EBADF:
-                printf("Error: Bad file descriptor\n");
-                break;
-            case EOVERFLOW:
-                printf("Error: Resulting file offset cannot be represented in an off_t data type\n");
-                break;
-            case ESRCH:
-                printf("Error: File descriptor does not exist\n");
-                break;
-            default:
-                fprintf(stderr, "Error seeking to the beginning of the file: %d\n", errorCode);
-        }
+        printSeekError(errorCode);
+        exit(EC_CANNOT_SEEK_FILE_BACKWARDS);
     }
 
     char buffer[MAX_LINE_LENGTH + 1];
     char *lines[MAX_LINES_COUNT];
     int lineCount = 0;
     ssize_t bytesRead = read(tf->fd, buffer, MAX_LINE_LENGTH);
-    while(bytesRead > 0 ){
+    while (bytesRead > 0) {
         buffer[bytesRead] = '\0';
         char *tokens = strtok(buffer, "\n");
-        char * tmp = tokens;
-        while(tmp != NULL && lineCount < MAX_LINES_COUNT) {
+        char *tmp = tokens;
+        while (tmp != NULL && lineCount < MAX_LINES_COUNT) {
             lines[lineCount] = strdup(tmp);
             lineCount++;
             tmp = strtok(NULL, "\n");
@@ -335,11 +407,9 @@ int main(int argc, char *argv[]) {
         bytesRead = read(tf->fd, buffer, MAX_LINE_LENGTH);
     }
 
-    for(int i = 0; i < lineCount; i++) {
+    for (int i = 0; i < lineCount; i++) {
         printf("%s\n", lines[i]);
     }
-
-
 
     closeTodoFile(tf);
     return 0;
