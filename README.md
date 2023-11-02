@@ -2,10 +2,21 @@
 
 A c program to manage your todos in terminal
 
-## Building
+## Building with docker
 
 ```bash
+## build image
+docker build -t todo-app:v0.1 -f BuildDockerfile .
+ 
+## build container and run
+docker run -it --rm --name=todo_app_example  --mount "type=bind,source=${PWD},target=/home/builder" todo-app:v0.1 bash
+builder@...:/$ cd ~
+builder@...:~$ gcc -Wall -Wpedantic -Werror src/*.c -o build/todo
+```
 
+## Building with gcc
+
+```bash
 gcc -Wall -Wpedantic src/*.c -o build/todo && ./build/todo
 Home directory: /home/anubhav
 Todo directory path: /home/anubhav/.todo

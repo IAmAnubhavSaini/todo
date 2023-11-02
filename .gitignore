@@ -10,6 +10,8 @@ CMakeFiles
 CMakeCache.txt
 *.db
 
+.bash_history
+
 #// https
 https-keys
 *.cert
