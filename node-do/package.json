@@ -1,0 +1,17 @@
+{
+  "name": "@f0c1s/node-do",
+  "version": "0.0.0-b1",
+  "description": "A terminal app that can manage your todo list",
+  "main": "src/todo.js",
+  "scripts": {
+    "test": "./node_modules/.bin/jasmine",
+    "start": "node src/todo.js",
+    "debug": "node src/todo.js --debug "
+  },
+  "keywords": [],
+  "author": "Anubhav Saini <iamanubhavsaini+git@gmail.com>",
+  "license": "MIT",
+  "devDependencies": {
+    "jasmine": "^5.1.0"
+  }
+}

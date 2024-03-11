@@ -12,7 +12,10 @@ RUN apt update && apt upgrade --yes && \
         curl \
         gdb\
         vim\
-        nmap
+        nmap \
+        vim \
+        sudo \
+        bash
 
 
 ARG USERNAME=builder
