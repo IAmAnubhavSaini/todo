@@ -4,8 +4,8 @@ const COMMAND_DONE = "done";
 const COMMAND_UNDONE = "undone";
 
 module.exports = {
-  COMMAND_LIST,
-  COMMAND_ADD,
-  COMMAND_DONE,
-  COMMAND_UNDONE,
+    COMMAND_LIST,
+    COMMAND_ADD,
+    COMMAND_DONE,
+    COMMAND_UNDONE,
 };

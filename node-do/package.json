@@ -1,6 +1,7 @@
 {
+  "private": true,
   "name": "@f0c1s/node-do",
-  "version": "0.0.0-b1",
+  "version": "0.0.0-b2",
   "description": "A terminal app that can manage your todo list",
   "main": "src/todo.js",
   "scripts": {
@@ -12,6 +13,11 @@
   "author": "Anubhav Saini <iamanubhavsaini+git@gmail.com>",
   "license": "MIT",
   "devDependencies": {
-    "jasmine": "^5.1.0"
+    "@types/jasmine": "^5.1.7",
+    "@types/node": "^22.14.1",
+    "jasmine": "^5.6.0"
+  },
+  "dependencies": {
+    "@f0c1s/node-common-log-lib": "^2025.4.13"
   }
 }

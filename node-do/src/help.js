@@ -19,6 +19,4 @@ function help() {
     console.log("\tinfo                         #   print information about the system");
 }
 
-
 module.exports = { help, info };
-
